@@ -43,6 +43,7 @@ set (CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/CMakeMacros/")
 find_package(Qhull REQUIRED)
 find_package(SoQt4 REQUIRED)
 find_package(LAPACK REQUIRED)
+find_package(TinyXML REQUIRED)
 
 
 SET( QT_USE_QT3SUPPORT TRUE )
@@ -549,23 +550,6 @@ set (GRASPIT_IMAGES
 )
 
 
-#-------------------------------------- The TinyXML XML parser ---------------------------------------------------
-
-set (GRASPIT_INCLUDES
-    ${GRASPIT_INCLUDES}
-    ${GSRC}/tinyxml
-)
-set (TINYXML_HEADERS 
-    ${GSRC}/tinyxml/tinyxml.h 
-    ${GSRC}/tinyxml/tinystr.h
-)
-
-set (GRASPIT_CORE_SOURCES
-    ${GRASPIT_CORE_SOURCES}
-    ${GSRC}/tinyxml/tinyxmlparser.cpp
-)
-
-
 #-------------------------------------- Optimizer ---------------------
 
 set (GRASPIT_INCLUDES
@@ -663,6 +647,7 @@ set (GRASPIT_INCLUDES
      ${QT_INCLUDE_DIR}
      ${QT_QT3SUPPORT_INCLUDE_DIR}
      ${QHULL_INCLUDE_DIRS}
+     ${TINYXML_INCLUDE_DIRS}
 )
 
 if (catkin_FOUND) 
@@ -690,7 +675,7 @@ if (catkin_FOUND)
       INCLUDE_DIRS ${GSRC}/include ${GRASPIT_INCLUDES}  
       LIBRARIES graspit
       #  CATKIN_DEPENDS 
-      DEPENDS ${QT_LIBRARIES} ${QT_QT3SUPPORT_LIBRARY} ${QHULL_LIBRARIES} ${SOQT_LIBRARY}
+      DEPENDS ${QT_LIBRARIES} ${QT_QT3SUPPORT_LIBRARY} ${QHULL_LIBRARIES} ${SOQT_LIBRARY} ${TINYXML_LIBRARIES}
     )
 endif (catkin_FOUND) 
 
@@ -748,6 +733,7 @@ target_link_libraries(graspit
    ${QHULL_LIBRARIES}
    ${SOQT_LIBRARY}
    ${LAPACK_LIBRARIES}
+   ${TINYXML_LIBRARIES}
 )
 
 target_link_libraries(graspit_simulator
