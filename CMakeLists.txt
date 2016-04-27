@@ -60,13 +60,13 @@ find_package(Qhull REQUIRED)
 find_package(SoQt4 REQUIRED)
 find_package(LAPACK REQUIRED)
 
-set(BULLET_ROOT /home/jvarley/bullet/)
 #if (DYNAMICS_ENGINE STREQUAL BULLET_DYNAMICS)
-	find_package(BULLET)
-#endif(DYNAMICS_ENGINE STREQUAL BULLET_DYNAMICS)
 
-message("BULLET include path: ${BULLET_INCLUDE_DIRS}")
-message("BULLET_ROOT: ${BULLET_ROOT}")
+	set(BULLET_ROOT $ENV{BULLET_ROOT})
+	message(USING BULLET_ROOT=${BULLET_ROOT} from env variable BULLET_ROOT.)
+	find_package(BULLET)
+
+#endif(DYNAMICS_ENGINE STREQUAL BULLET_DYNAMICS)
  
 
 SET( QT_USE_QT3SUPPORT TRUE )
