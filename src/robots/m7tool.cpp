@@ -19,30 +19,30 @@
 //
 // Author(s):  Hao Dang (hd2181@columbia.edu)
 //
-// $Id: 
+// $Id:
 //
 //######################################################################
 
-/*! \file 
+/*! \file
   \brief Defines the special %M7tool class
  */
 
-#include "robots/m7tool.h"
-#include "world.h"
+#include "graspit/robots/m7tool.h"
+#include "graspit/world.h"
 
 int
-M7Tool::loadFromXml(const TiXmlElement* root,QString rootPath)
+M7Tool::loadFromXml(const TiXmlElement *root, QString rootPath)
 {
-	int result = Robot::loadFromXml(root, rootPath);
-	if (result != SUCCESS) return result;
-	//toggle off collision detections
-	myWorld->toggleCollisions(false, chainVec[0]->getLink(0), chainVec[1]->getLink(0));
-	return result;
+  int result = Robot::loadFromXml(root, rootPath);
+  if (result != SUCCESS) { return result; }
+  //toggle off collision detections
+  myWorld->toggleCollisions(false, chainVec[0]->getLink(0), chainVec[1]->getLink(0));
+  return result;
 }
 
 void M7Tool::cloneFrom(Hand *original)
 {
-	Hand::cloneFrom(original);
-	//toggle off collision detections
-	myWorld->toggleCollisions(false, chainVec[0]->getLink(0), chainVec[1]->getLink(0));
-} 
+  Hand::cloneFrom(original);
+  //toggle off collision detections
+  myWorld->toggleCollisions(false, chainVec[0]->getLink(0), chainVec[1]->getLink(0));
+}

@@ -23,29 +23,29 @@
 //
 //######################################################################
 
-#include "EGPlanner/loopPlanner.h"
+#include "graspit/EGPlanner/loopPlanner.h"
 
-#include "robot.h"
-#include "world.h"
-#include "EGPlanner/simAnn.h"
-#include "EGPlanner/energy/searchEnergy.h"
-#include "EGPlanner/searchState.h"
+#include "graspit/robot.h"
+#include "graspit/world.h"
+#include "graspit/EGPlanner/simAnn.h"
+#include "graspit/EGPlanner/energy/searchEnergy.h"
+#include "graspit/EGPlanner/searchState.h"
 
 //#define GRASPITDBG
-#include "debug.h"
+#include "graspit/debug.h"
 
 LoopPlanner::LoopPlanner(Hand *h)
 {
   mHand = h;
   init();
 
-  mEnergyCalculator = SearchEnergy::getSearchEnergy(ENERGY_CONTACT_QUALITY);
-  mEnergyCalculator->setAvoidList( &mAvoidList );
-  
+  mEnergyCalculator = SearchEnergy::getSearchEnergy("GUIDED_POTENTIAL_QUALITY_ENERGY");
+  mEnergyCalculator->setAvoidList(&mAvoidList);
+
   mSimAnn = new SimAnn();
   mSimAnn->setParameters(ANNEAL_LOOP);
   mRepeat = true;
-  
+
   mDistanceThreshold = 0.1f;
   mEnergyCalculator->setThreshold(mDistanceThreshold);
 
@@ -53,16 +53,16 @@ LoopPlanner::LoopPlanner(Hand *h)
 }
 
 void
-LoopPlanner::setEnergyType(SearchEnergyType s)
+LoopPlanner::setEnergyType(std::string s)
 {
-    assert (mEnergyCalculator);
-    if (!mEnergyCalculator->isType(s))
-    {
-        delete mEnergyCalculator;
-        mEnergyCalculator = SearchEnergy::getSearchEnergy(s);
-        mEnergyCalculator->setThreshold(mDistanceThreshold);
-        mEnergyCalculator->setAvoidList( &mAvoidList );
-    }
+  assert(mEnergyCalculator);
+  if (!mEnergyCalculator->isType(s))
+  {
+    delete mEnergyCalculator;
+    mEnergyCalculator = SearchEnergy::getSearchEnergy(s);
+    mEnergyCalculator->setThreshold(mDistanceThreshold);
+    mEnergyCalculator->setAvoidList(&mAvoidList);
+  }
 }
 
 void LoopPlanner::setDistanceThreshold(float t)
@@ -83,20 +83,20 @@ void LoopPlanner::resetParameters()
     if (s->getEnergy() > mSaveThreshold) {
       delete s;
     } else {
-      mAvoidList.push_back( s );
+      mAvoidList.push_back(s);
     }
   }
   SimAnnPlanner::resetParameters();
   Q_EMIT loopUpdate();
 }
 
-const GraspPlanningState* 
+const GraspPlanningState *
 LoopPlanner::getGrasp(int i)
 {
   DBGP("Loop get grasp");
-  assert (i>=0 && i<(int)mAvoidList.size());
-  std::list<GraspPlanningState*>::iterator it = mAvoidList.begin();
-  for (int k=0; k<i; k++) {
+  assert(i >= 0 && i < (int)mAvoidList.size());
+  std::list<GraspPlanningState *>::iterator it = mAvoidList.begin();
+  for (int k = 0; k < i; k++) {
     it++;
   }
   return (*it);
@@ -106,7 +106,7 @@ void
 LoopPlanner::clearSolutions()
 {
   SimAnnPlanner::clearSolutions();
-  while ( !mAvoidList.empty() ) {
+  while (!mAvoidList.empty()) {
     delete(mAvoidList.back());
     mAvoidList.pop_back();
   }

@@ -23,64 +23,64 @@
 //
 //######################################################################
 
-#include "worldElementFactory.h"
+#include "graspit/worldElementFactory.h"
 
 /* Since we are using a class down here to register all the built in types
    at runtime, we have to include all relevant headers here. Maybe we can
    find a better solution at some point.
 */
-#include "robot.h"
-#include "body.h"
-#include "robot.h"
-#include "humanHand.h"
-#include "robonaut.h"
-#include "pr2Gripper.h"
-#include "m7.h"
-#include "m7tool.h"
-#include "barrett.h"
-#include "shadow.h"
-#include "puma560.h"
-#include "mcGrip.h"
-#include "robotiq.h"
+#include "graspit/robot.h"
+#include "graspit/body.h"
+#include "graspit/robot.h"
+#include "graspit/robots/humanHand.h"
+#include "graspit/robots/robonaut.h"
+#include "graspit/robots/pr2Gripper.h"
+#include "graspit/robots/m7.h"
+#include "graspit/robots/m7tool.h"
+#include "graspit/robots/barrett.h"
+#include "graspit/robots/shadow.h"
+#include "graspit/robots/puma560.h"
+#include "graspit/robots/mcGrip.h"
+#include "graspit/robots/robotiq.h"
 
 WorldElementFactory::~WorldElementFactory()
 {
-  for (std::map<std::string, WorldElementCreator*>::iterator it=mCreators.begin(); it!=mCreators.end(); it++)
+  for (std::map<std::string, WorldElementCreator *>::iterator it = mCreators.begin(); it != mCreators.end(); it++)
   {
     delete it->second;
   }
 }
 
-WorldElement* 
-WorldElementFactory::createElement(std::string elementType, World *parent,const char *name)
+WorldElement *
+WorldElementFactory::createElement(std::string elementType, World *parent, const char *name)
 {
-  std::map<std::string, WorldElementCreator*>::iterator it = mCreators.find(elementType);
-  if (it==mCreators.end()) return NULL;
+  std::map<std::string, WorldElementCreator *>::iterator it = mCreators.find(elementType);
+  if (it == mCreators.end()) { return NULL; }
   return (*(it->second))(parent, name);
 }
 
-void 
+void
 WorldElementFactory::registerCreator(std::string elementType, WorldElementCreator *creator)
 {
   mCreators[elementType] = creator;
 }
 
-void 
+void
 WorldElementFactory::registerBuiltinCreators()
 {
-  REGISTER_CREATOR("Body",Body);
-  REGISTER_CREATOR("GraspableBody",GraspableBody);
-  REGISTER_CREATOR("Robot",Robot);
-  REGISTER_CREATOR("Hand",Hand);
-  REGISTER_CREATOR("Puma560",Puma560);
-  REGISTER_CREATOR("Barrett",Barrett);
-  REGISTER_CREATOR("Robonaut",Robonaut);
-  REGISTER_CREATOR("Pr2Gripper",Pr2Gripper);
-  REGISTER_CREATOR("Pr2Gripper2010",Pr2Gripper2010);
-  REGISTER_CREATOR("M7",M7);
-  REGISTER_CREATOR("M7Tool",M7Tool);
-  REGISTER_CREATOR("HumanHand",HumanHand);
-  REGISTER_CREATOR("Shadow",Shadow);
-  REGISTER_CREATOR("McGrip",McGrip);
-  REGISTER_CREATOR("RobotIQ",RobotIQ);
+  REGISTER_CREATOR("Body", Body);
+  REGISTER_CREATOR("GraspableBody", GraspableBody);
+  REGISTER_CREATOR("Robot", Robot);
+  REGISTER_CREATOR("Hand", Hand);
+  REGISTER_CREATOR("Puma560", Puma560);
+  REGISTER_CREATOR("Barrett", Barrett);
+  REGISTER_CREATOR("Robonaut", Robonaut);
+  REGISTER_CREATOR("Pr2Gripper", Pr2Gripper);
+  REGISTER_CREATOR("Pr2Gripper2010", Pr2Gripper2010);
+  REGISTER_CREATOR("M7", M7);
+  REGISTER_CREATOR("M7Tool", M7Tool);
+  REGISTER_CREATOR("HumanHand", HumanHand);
+  REGISTER_CREATOR("Shadow", Shadow);
+  REGISTER_CREATOR("McGrip", McGrip);
+  REGISTER_CREATOR("RobotIQ", RobotIQ);
 }

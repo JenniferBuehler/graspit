@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with GraspIt!.  If not, see <http://www.gnu.org/licenses/>.
 //
-// Author(s): Andrew T. Miller 
+// Author(s): Andrew T. Miller
 //
 // $Id: main.cpp,v 1.16 2010/01/13 23:09:30 cmatei Exp $
 //
@@ -39,7 +39,7 @@
 */
 
 /*! \file
-  \brief Program execution starts here.  Server is started, main window is built, 
+  \brief Program execution starts here.  Server is started, main window is built,
   and the interactive loop is started.
 
   The main call returns an exit code as indicated by the graspit GUI (0 by default)
@@ -47,12 +47,12 @@
  */
 
 #include <iostream>
-#include <graspitApp.h>
-#include "graspitCore.h"
-#include "graspitServer.h"
+#include <graspit/graspitApp.h>
+#include "graspit/graspitCore.h"
+#include "graspit/graspitServer.h"
 #include "mainWindow.h"
-#include "cmdline.h"
-#include "graspitParser.h"
+#include "graspit/cmdline/cmdline.h"
+#include "graspit/graspitParser.h"
 
 #ifdef Q_WS_WIN
 #include <windows.h>
@@ -63,10 +63,10 @@ int main(int argc, char **argv)
 {
 #ifdef GRASPITDBG
 #ifdef Q_WS_WIN
-  AllocConsole(); 
-  freopen("conin$", "r", stdin); 
-  freopen("conout$", "w", stdout); 
-  freopen("conout$", "w", stderr); 
+  AllocConsole();
+  freopen("conin$", "r", stdin);
+  freopen("conout$", "w", stdout);
+  freopen("conout$", "w", stderr);
   //ios::sync_with_stdio();
 #endif
 #endif
@@ -78,36 +78,36 @@ int main(int argc, char **argv)
   bool headless = parsed_args->exist("headless");
 
   GraspItApp app(argc, argv);
-  if(!headless){
-      if (app.splashEnabled()) {
-        app.showSplash();
-        QApplication::setOverrideCursor( Qt::waitCursor );
-      }
+  if (!headless) {
+    if (app.splashEnabled()) {
+      app.showSplash();
+      QApplication::setOverrideCursor(Qt::waitCursor);
+    }
   }
 
   GraspitCore core(argc, argv);
-  
+
   //This is the GraspIt TCP server. It can be used to connect to GraspIt from
   //external programs, such as Matlab.
   //On some machines, the Q3Socket segfaults at exit, so this is commented out by
   //default
   //GraspItServer server(4765);
- 
+
 
   QObject::connect(qApp, SIGNAL(lastWindowClosed()), qApp, SLOT(quit()));
 
-  if(!headless)
+  if (!headless)
   {
-      app.setMainWidget(core.getMainWindow()->mWindow);
-      if (app.splashEnabled()) {
-        app.closeSplash();
-        QApplication::restoreOverrideCursor();
-      }
+    app.setMainWidget(core.getMainWindow()->mWindow);
+    if (app.splashEnabled()) {
+      app.closeSplash();
+      QApplication::restoreOverrideCursor();
+    }
   }
 
 
   if (!core.terminalFailure()) {
-      core.startMainLoop();
+    core.startMainLoop();
   }
   return core.getExitCode();
 }

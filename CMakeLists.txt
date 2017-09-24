@@ -1,11 +1,18 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(graspit)
 
+
+set(GRASPIT_MAJOR_VERSION 4)
+set(GRASPIT_MINOR_VERSION 0)
+set(GRASPIT_PATCH_VERSION 0)
+set(GRASPIT_VERSION
+  ${GRASPIT_MAJOR_VERSION}.${GRASPIT_MINOR_VERSION}.${GRASPIT_PATCH_VERSION})
+
 ####################################
 ## Define build type ###############
 ####################################
 if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING
         "Choose the type of build, options are: Debug Release"
      FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
@@ -45,8 +52,7 @@ if (COMPILE_WITH_CATKIN)
     find_package(catkin REQUIRED)
 endif (COMPILE_WITH_CATKIN)
    
-# Configuration file for graspit
-set (GRASPIT_CONFIG_CMAKE graspitConfig.cmake)
+
 
 
 ####################################
@@ -60,18 +66,41 @@ set(COLLISION_ENGINE GRASPIT_COLLISION CACHE PATH "back end for GraspIt! Collisi
 set(CGDB true CACHE PATH "compile CGDB sources as well")
 set(PLY true CACHE PATH "compile PLY sources as well")
 set(DYNAMICS_ENGINE GRASPIT_DYNAMICS CACHE PATH "back end for GraspIt! Dynamics, current options are GRASPIT_DYNAMICS, BULLET_DYNAMICS")
+set(OPTIMIZATION_SOLVER NONE CACHE PATH "back end for GraspIt! optimization solver, current options are NONE, MOSEK, OASES, GUROBI")
 set(BUILD_TESTS false CACHE PATH "build tests as well")
+set(GRASPIT_DATA_DIR /home/$ENV{USER}/.graspit CACHE PATH "location to save graspit models, worlds and images")
+
+if(WIN32 AND NOT CYGWIN)
+  set(DEF_INSTALL_CMAKE_DIR CMake)
+else()
+  set(DEF_INSTALL_CMAKE_DIR lib/cmake/graspit)
+endif()
+set(INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
+  "Installation directory for CMake files")
+
+# Make relative paths absolute (needed later on)
+foreach(p LIB BIN INCLUDE CMAKE)
+  set(var INSTALL_${p}_DIR)
+  if(NOT IS_ABSOLUTE "${${var}}")
+    set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+  endif()
+endforeach()
+
+
+
+# Configuration file for graspit
+set (GRASPIT_CONFIG_CMAKE graspitConfig.cmake)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-	set (GRASPIT_DEFINES 
-	    -DGRASPIT_RELEASE  
-	    -DGRASPIT_EXPORTS)
+    set (GRASPIT_DEFINES 
+        -DGRASPIT_RELEASE  
+        -DGRASPIT_EXPORTS)
 endif(CMAKE_BUILD_TYPE STREQUAL "Release")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-	set (GRASPIT_DEFINES  
-	    -DGRASPIT_DEBUG
-	    -DGRASPIT_EXPORTS)
+    set (GRASPIT_DEFINES  
+        -DGRASPIT_DEBUG
+        -DGRASPIT_EXPORTS)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 
@@ -81,153 +110,192 @@ find_package(Qhull REQUIRED)
 find_package(SoQt4 REQUIRED)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
-
-# All depending cmake projects to be added with catkin_package() as DEPENDS
-set(CMAKE_DEPEND_PROJECTS Qhull SoQt4 LAPACK)
+find_package(Eigen3)
 
 if (DYNAMICS_ENGINE STREQUAL BULLET_DYNAMICS)
 
-	set(BULLET_ROOT $ENV{BULLET_ROOT})
-	message(USING BULLET_ROOT=${BULLET_ROOT} from env variable BULLET_ROOT.)
-	find_package(BULLET)
+    set(BULLET_ROOT $ENV{BULLET_ROOT})
+    message(USING BULLET_ROOT=${BULLET_ROOT} from env variable BULLET_ROOT.)
+    find_package(BULLET)
     set(CMAKE_DEPEND_PROJECTS ${CMAKE_DEPEND_PROJECTS} BULLET)
 
 endif(DYNAMICS_ENGINE STREQUAL BULLET_DYNAMICS)
 
+if (OPTIMIZATION_SOLVER STREQUAL MOSEK)
+
+    set(MOSEK_ROOT $ENV{MOSEK6_0_INSTALLDIR})
+    message(USING MOSEK_ROOT=${MOSEK_ROOT} from env variable MOSEK6_0_INSTALLDIR.)
+
+endif (OPTIMIZATION_SOLVER STREQUAL MOSEK)
+
+if (OPTIMIZATION_SOLVER STREQUAL OASES)
+
+    set(OASES_ROOT $ENV{QPOASES_DIR})
+    message(USING OASES_ROOT=${OASES_ROOT} from env variable QPOASES_DIR.)
+
+endif (OPTIMIZATION_SOLVER STREQUAL OASES)
+
+if (OPTIMIZATION_SOLVER STREQUAL GUROBI)
+
+    set(GUROBI_ROOT $ENV{GUROBI_HOME})
+    message(USING GUROBI_ROOT=${GUROBI_ROOT} from env variable GUROBI_HOME.)
+
+endif (OPTIMIZATION_SOLVER STREQUAL GUROBI)
 
 SET( QT_USE_QT3SUPPORT TRUE )
 find_package(Qt4 COMPONENTS QtCore QtSql REQUIRED)
-set(CMAKE_DEPEND_PROJECTS ${CMAKE_DEPEND_PROJECTS} Qt4)
 
 include (${QT_USE_FILE})
+
+# All depending cmake projects to be added with catkin_package() as DEPENDS
+set(CMAKE_DEPEND_PROJECTS Qt4 Qhull SoQt4 LAPACK)
 
 #--------------------------------------- Core sources ---------------------------------
 
 set (GRASPIT_INCLUDES
     ${GSRC}
     ${GSRC}/include/
-    ${GSRC}/include/robots
-    ${GSRC}/include/math
-    ${GSRC}/include/dynamics
-    ${GSRC}/include/contact
-    ${GSRC}/include/EGPlanner
-    ${GSRC}/include/EGPlanner/energy
-    ${GSRC}/include/Planner
-    ${GSRC}/include/Collision
     ${GSRC}/cmdline
+    ${GSRC}/ui
+    # following needs to be included because basic
+    # files wouldn't compile without main window
+    ${GSRC}/ui/Planner
+    ${GSRC}/ui/EGPlanner
 )
 
 
+set (GRASPIT_INCLUDEDIR
+    ${GSRC}/include/graspit/
+)
 # all headers which are directly under the 
 # include directory and should be included
 # in the installation should be listed in the
 # variable GRASPIT_INCLUDEDIR_HEADERS
 set (GRASPIT_INCLUDEDIR_HEADERS
-    ${GSRC}/include/robots/barrett.h 
-    ${GSRC}/include/robots/pr2Gripper.h 
-    ${GSRC}/include/robots/m7.h 
-    ${GSRC}/include/robots/m7tool.h 
-    ${GSRC}/include/robots/robonaut.h 
-    ${GSRC}/include/robots/robotiq.h 
-    ${GSRC}/include/robots/humanHand.h 
-    ${GSRC}/include/robots/shadow.h
-    ${GSRC}/include/robots/mcGrip.h 
-    ${GSRC}/include/robots/puma560.h 
-    ${GSRC}/include/robot.h 
-    ${GSRC}/include/graspitParser.h 
-    ${GSRC}/include/body.h 
-    ${GSRC}/include/bBox.h 
-    ${GSRC}/include/bbox_inl.h 
-    ${GSRC}/include/contactSetting.h 
-    ${GSRC}/include/debug.h 
-    ${GSRC}/include/dof.h 
-    ${GSRC}/include/dynamics/dynamics.h 
-    ${GSRC}/include/dynamics/dynJoint.h 
-    ${GSRC}/include/dynamics/dynamicsEngine.h 
-    ${GSRC}/include/eigenGrasp.h 
-    ${GSRC}/include/gloveInterface.h 
-    ${GSRC}/include/grasp.h 
-    ${GSRC}/include/graspRecord.h 
-    ${GSRC}/include/gws.h 
-    ${GSRC}/include/gwsprojection.h 
-    ${GSRC}/include/ivmgr.h 
-    ${GSRC}/include/jacobian.h 
-    ${GSRC}/include/joint.h 
-    ${GSRC}/include/kinematicChain.h 
-    ${GSRC}/include/lmiOptimizer.h 
-    ${GSRC}/include/material.h 
-    ${GSRC}/include/matvec3D.h 
-    ${GSRC}/include/matvecIO.h 
-    ${GSRC}/include/maxdet.h 
-    ${GSRC}/include/mytools.h 
-    ${GSRC}/include/profiling.h 
-    ${GSRC}/include/qhull_mutex.h 
-    ${GSRC}/include/quality.h 
-    ${GSRC}/include/plugin.h 
-    ${GSRC}/include/SoArrow.h 
-    ${GSRC}/include/SoComplexShape.h 
-    ${GSRC}/include/SoTorquePointer.h 
-    ${GSRC}/include/scanSimulator.h 
-    ${GSRC}/include/timer_calls.h 
-    ${GSRC}/include/triangle_inl.h 
-    ${GSRC}/include/triangle.h 
-    ${GSRC}/include/worldElement.h 
-    ${GSRC}/include/worldElementFactory.h 
-    ${GSRC}/include/world.h 
-    ${GSRC}/include/graspitCore.h
-    ${GSRC}/include/graspitServer.h 
-    ${GSRC}/include/graspitApp.h 
-    ${GSRC}/include/arch.h
-    ${GSRC}/include/FitParabola.h 
+    ${GSRC}/include/graspit/robots/barrett.h
+    ${GSRC}/include/graspit/robots/pr2Gripper.h
+    ${GSRC}/include/graspit/robots/m7.h
+    ${GSRC}/include/graspit/robots/m7tool.h
+    ${GSRC}/include/graspit/robots/robonaut.h
+    ${GSRC}/include/graspit/robots/robotiq.h
+    ${GSRC}/include/graspit/robots/humanHand.h
+    ${GSRC}/include/graspit/robots/shadow.h
+    ${GSRC}/include/graspit/robots/mcGrip.h
+    ${GSRC}/include/graspit/robots/puma560.h
+    ${GSRC}/include/graspit/robot.h
+    ${GSRC}/include/graspit/graspitParser.h
+    ${GSRC}/include/graspit/body.h
+    ${GSRC}/include/graspit/bBox.h
+    ${GSRC}/include/graspit/bbox_inl.h
+    ${GSRC}/include/graspit/contact/contact.h
+    ${GSRC}/include/graspit/contact/softContact.h
+    ${GSRC}/include/graspit/contact/pointContact.h
+    ${GSRC}/include/graspit/contact/virtualContact.h
+    ${GSRC}/include/graspit/contact/virtualContactOnObject.h
+    ${GSRC}/include/graspit/contactSetting.h
+    ${GSRC}/include/graspit/quality/quality.h
+    ${GSRC}/include/graspit/quality/qualEpsilon.h
+    ${GSRC}/include/graspit/quality/qualVolume.h
+    ${GSRC}/include/graspit/quality/qualPCR.h
+    ${GSRC}/include/graspit/quality/qualPGR.h
+    ${GSRC}/include/graspit/debug.h
+    ${GSRC}/include/graspit/dof.h
+    ${GSRC}/include/graspit/dynamics/dynamics.h
+    ${GSRC}/include/graspit/dynamics/dynJoint.h
+    ${GSRC}/include/graspit/dynamics/dynamicsEngine.h
+    ${GSRC}/include/graspit/eigenGrasp.h
+    ${GSRC}/include/graspit/gloveInterface.h
+    ${GSRC}/include/graspit/grasp.h
+    ${GSRC}/include/graspit/graspRecord.h
+    ${GSRC}/include/graspit/gws.h
+    ${GSRC}/include/graspit/gwsprojection.h
+    ${GSRC}/include/graspit/ivmgr.h
+    ${GSRC}/include/graspit/jacobian.h
+    ${GSRC}/include/graspit/joint.h
+    ${GSRC}/include/graspit/kinematicChain.h
+    ${GSRC}/include/graspit/lmiOptimizer.h
+    ${GSRC}/include/graspit/material.h
+    ${GSRC}/include/graspit/matvec3D.h
+    ${GSRC}/include/graspit/matvecIO.h
+    ${GSRC}/include/graspit/maxdet.h
+    ${GSRC}/include/graspit/mytools.h
+    ${GSRC}/include/graspit/profiling.h
+    ${GSRC}/include/graspit/qhull_mutex.h
+    ${GSRC}/include/graspit/plugin.h
+    ${GSRC}/include/graspit/SoArrow.h
+    ${GSRC}/include/graspit/SoComplexShape.h
+    ${GSRC}/include/graspit/SoTorquePointer.h
+    ${GSRC}/include/graspit/scanSimulator.h
+    ${GSRC}/include/graspit/timer_calls.h
+    ${GSRC}/include/graspit/triangle_inl.h
+    ${GSRC}/include/graspit/triangle.h
+    ${GSRC}/include/graspit/transform.h
+    ${GSRC}/include/graspit/flockTransform.h
+    ${GSRC}/include/graspit/worldElement.h
+    ${GSRC}/include/graspit/worldElementFactory.h
+    ${GSRC}/include/graspit/world.h
+    ${GSRC}/include/graspit/graspitCore.h
+    ${GSRC}/include/graspit/graspitServer.h
+    ${GSRC}/include/graspit/graspitApp.h
+    ${GSRC}/include/graspit/arch.h
+    ${GSRC}/include/graspit/FitParabola.h
+    ${GSRC}/include/graspit/bodySensor.h
 )
-
-
-set (GRASPIT_CONTACT_HEADERS
-    ${GSRC}/include/contact/contact.h 
-    ${GSRC}/include/contact/softContact.h 
-    ${GSRC}/include/contact/pointContact.h 
-    ${GSRC}/include/contact/virtualContact.h 
-    ${GSRC}/include/contact/virtualContactOnObject.h
-)
-
 set (GRASPIT_PLANNER_HEADERS
-    ${GSRC}/include/Planner/grasp_visualization.h 
-    ${GSRC}/include/Planner/grasp_tester.h 
-    ${GSRC}/include/Planner/grasp_preshape.h 
-    ${GSRC}/include/Planner/grasp_presenter.h 
-    ${GSRC}/include/Planner/grasp_planner.h 
-    ${GSRC}/include/Planner/grasp_manager.h 
-    ${GSRC}/include/Planner/grasp_grasps.h 
-    ${GSRC}/include/Planner/grasp_directions.h 
-    ${GSRC}/include/Planner/grasp_coordinates.h 
+    ${GSRC}/include/graspit/Planner/grasp_visualization.h
+    ${GSRC}/include/graspit/Planner/grasp_tester.h
+    ${GSRC}/include/graspit/Planner/grasp_preshape.h
+    ${GSRC}/include/graspit/Planner/grasp_presenter.h
+    ${GSRC}/include/graspit/Planner/grasp_planner.h
+    ${GSRC}/include/graspit/Planner/grasp_manager.h
+    ${GSRC}/include/graspit/Planner/grasp_grasps.h
+    ${GSRC}/include/graspit/Planner/grasp_directions.h
+    ${GSRC}/include/graspit/Planner/grasp_coordinates.h
 )
 set (GRASPIT_EGPLANNER_HEADERS
-    ${GSRC}/include/EGPlanner/search.h 
-    ${GSRC}/include/EGPlanner/simAnn.h 
-    ${GSRC}/include/EGPlanner/searchState.h 
-    ${GSRC}/include/EGPlanner/searchStateImpl.h 
-    ${GSRC}/include/EGPlanner/onLinePlanner.h 
-    ${GSRC}/include/EGPlanner/egPlanner.h 
-    ${GSRC}/include/EGPlanner/simAnnPlanner.h 
-    ${GSRC}/include/EGPlanner/guidedPlanner.h 
-    ${GSRC}/include/EGPlanner/loopPlanner.h 
-    ${GSRC}/include/EGPlanner/timeTest.h 
-    ${GSRC}/include/EGPlanner/graspTesterThread.h 
-    ${GSRC}/include/EGPlanner/onLineGraspInterface.h 
-    ${GSRC}/include/EGPlanner/listPlanner.h 
- 
+    ${GSRC}/include/graspit/EGPlanner/search.h
+    ${GSRC}/include/graspit/EGPlanner/simAnn.h
+    ${GSRC}/include/graspit/EGPlanner/searchState.h
+    ${GSRC}/include/graspit/EGPlanner/searchStateImpl.h
+    ${GSRC}/include/graspit/EGPlanner/onLinePlanner.h
+    ${GSRC}/include/graspit/EGPlanner/egPlanner.h
+    ${GSRC}/include/graspit/EGPlanner/simAnnPlanner.h
+    ${GSRC}/include/graspit/EGPlanner/guidedPlanner.h
+    ${GSRC}/include/graspit/EGPlanner/loopPlanner.h
+    ${GSRC}/include/graspit/EGPlanner/timeTest.h
+    ${GSRC}/include/graspit/EGPlanner/graspTesterThread.h
+    ${GSRC}/include/graspit/EGPlanner/onLineGraspInterface.h
+    ${GSRC}/include/graspit/EGPlanner/listPlanner.h 
 )
 
 set (GRASPIT_EGPLANNER_ENERGY_HEADERS
-    ${GSRC}/include/EGPlanner/energy/searchEnergy.h 
-    ${GSRC}/include/EGPlanner/energy/autograspQualityEnergy.h 
-    ${GSRC}/include/EGPlanner/energy/compliantEnergy.h
-    ${GSRC}/include/EGPlanner/energy/contactEnergy.h 
-    ${GSRC}/include/EGPlanner/energy/dynamicAutograspEnergy.h 
-    ${GSRC}/include/EGPlanner/energy/guidedAutoGraspEnergy.h 
-    ${GSRC}/include/EGPlanner/energy/guidedPotentialQualityEnergy.h 
-    ${GSRC}/include/EGPlanner/energy/potentialQualityEnergy.h
-    ${GSRC}/include/EGPlanner/energy/strictAutoGraspEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/searchEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/searchEnergyFactory.h
+    ${GSRC}/include/graspit/EGPlanner/energy/autoGraspQualityEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/compliantEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/contactEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/dynamicAutoGraspEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/guidedAutoGraspEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/guidedPotentialQualityEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/potentialQualityEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/energy/strictAutoGraspEnergy.h
+)
+
+set (GRASPIT_CONTACT_HEADERS
+    ${GSRC}/include/graspit/contact/contact.h
+    ${GSRC}/include/graspit/contact/pointContact.h
+    ${GSRC}/include/graspit/contact/softContact.h
+    ${GSRC}/include/graspit/contact/virtualContact.h
+    ${GSRC}/include/graspit/contact/virtualContactOnObject.h
+)
+
+
+set (GRASPIT_QUALITY_HEADERS
+    ${GSRC}/include/graspit/quality/quality.h
+    ${GSRC}/include/graspit/quality/qualEpsilon.h
+    ${GSRC}/include/graspit/quality/qualPCR.h
+    ${GSRC}/include/graspit/quality/qualPGR.h
+    ${GSRC}/include/graspit/quality/qualVolume.h
 )
 
 # all headers which are in the  cmdline
@@ -235,16 +303,16 @@ set (GRASPIT_EGPLANNER_ENERGY_HEADERS
 # in the installation should be listed in the
 # variable GRASPIT_CMDLINE_HEADERS
 set (GRASPIT_CMDLINE_HEADERS
-    ${GSRC}/cmdline/cmdline.h 
+    ${GSRC}/include/graspit/cmdline/cmdline.h 
 )
-	
+
 # all headers which are in the src/Collision 
 # directory and should be included
 # in the installation should be listed in the
 # variable GRASPIT_SRC_COLLISION_HEADERS
 set (GRASPIT_SRC_COLLISION_HEADERS
-    ${GSRC}/include/Collision/collisionInterface.h
-    ${GSRC}/include/Collision/collisionStructures.h
+    ${GSRC}/include/graspit/Collision/collisionInterface.h
+    ${GSRC}/include/graspit/Collision/collisionStructures.h
 )
 
 
@@ -253,37 +321,37 @@ set (GRASPIT_SRC_COLLISION_HEADERS
 # in the installation should be listed in the
 # variable GRASPIT_INCLUDE_MATH_HEADERS
 set (GRASPIT_INCLUDE_MATH_HEADERS
-    ${GSRC}/include/math/matrix.h 
+    ${GSRC}/include/graspit/math/matrix.h
 )
 
 
 if (CGDB)  
     set(CGDB_HEADERS
-        include/DBase/graspit_db_model.h
-        include/DBase/graspit_db_grasp.h
-        include/DBase/graspit_db_planner.h
-        include/DBase/taskDispatcher.h
-        include/DBase/preGraspCheckTask.h
-        include/DBase/graspClusteringTask.h
-        include/DBase/graspTransferCheckTask.h
-        include/DBase/tableCheckTask.h
-        include/DBase/compliantGraspCopyTask.h
+        include/graspit/DBase/graspit_db_model.h
+        include/graspit/DBase/graspit_db_grasp.h
+        include/graspit/DBase/graspit_db_planner.h
+        include/graspit/DBase/taskDispatcher.h
+        include/graspit/DBase/preGraspCheckTask.h
+        include/graspit/DBase/graspClusteringTask.h
+        include/graspit/DBase/graspTransferCheckTask.h
+        include/graspit/DBase/tableCheckTask.h
+        include/graspit/DBase/compliantGraspCopyTask.h
     )
     set(CGDB_MOC_HEADERS
         ui/DBase/dbaseDlg.h
         ui/DBase/dbasePlannerDlg.h
-        include/DBase/dbase_grasp.h
-        include/DBase/graspit_db_planner.h
-        include/DBase/graspPlanningTask.h
+        include/graspit/DBase/dbase_grasp.h
+        include/graspit/DBase/graspit_db_planner.h
+        include/graspit/DBase/graspPlanningTask.h
     )
 
     set(CGDB_PLANNER_HEADERS
-        include/DBase/DBPlanner/grasp.h
-        include/DBase/DBPlanner/model.h
-        include/DBase/DBPlanner/db_manager.h
-        include/DBase/DBPlanner/database.h
-        include/DBase/DBPlanner/sql_database_manager.h
-        include/DBase/DBPlanner/task.h
+        include/graspit/DBase/DBPlanner/grasp.h
+        include/graspit/DBase/DBPlanner/model.h
+        include/graspit/DBase/DBPlanner/db_manager.h
+        include/graspit/DBase/DBPlanner/database.h
+        include/graspit/DBase/DBPlanner/sql_database_manager.h
+        include/graspit/DBase/DBPlanner/task.h
     )
 
     set(CGDB_SOURCES
@@ -316,20 +384,20 @@ if (CGDB)
     )
 
     set (GRASPIT_CGDB_INCLUDES
-        ${GSRC}/include/
-        ${GSRC}/include/DBase/
-        ${GSRC}/include/DBase/DBPlanner/
+        ${GSRC}/include/graspit/
+        ${GSRC}/include/graspit/DBase/
+        ${GSRC}/include/graspit/DBase/DBPlanner/
     )
 endif (CGDB)  
 
 if (PLY)
     set (PLY_HEADERS
-        ply/ply.h
-        ply/mesh_loader.h
+        ${GSRC}/include/graspit/ply/ply.h
+        ${GSRC}/include/graspit/ply/mesh_loader.h
     )
     set (PLY_SOURCES
-        ply/ply.c
-        ply/mesh_loader.cpp
+        ${GSRC}/src/ply/ply.c
+        ${GSRC}/src/ply/mesh_loader.cpp
     )
     set (GRASPIT_DEFINES 
         ${GRASPIT_DEFINES}
@@ -342,27 +410,27 @@ endif (PLY)
 
 
 set (MOC_HEADERS
-    ${GSRC}/include/body.h
-    ${GSRC}/include/robot.h
-    ${GSRC}/include/world.h
-    ${GSRC}/include/grasp.h
-    ${GSRC}/include/worldElement.h
-    ${GSRC}/include/graspitServer.h
-    ${GSRC}/include/ivmgr.h
-    ${GSRC}/include/EGPlanner/egPlanner.h
-    ${GSRC}/include/EGPlanner/simAnn.h
-    ${GSRC}/include/EGPlanner/loopPlanner.h
-    ${GSRC}/include/EGPlanner/energy/searchEnergy.h
-    ${GSRC}/include/EGPlanner/guidedPlanner.h
-    ${GSRC}/include/Planner/grasp_tester.h
-    ${GSRC}/include/robots/humanHand.h
-    ${GSRC}/include/robots/m7tool.h
-    ${GSRC}/include/robots/m7.h
-    ${GSRC}/include/robots/barrett.h
-    ${GSRC}/include/robots/robonaut.h
-    ${GSRC}/include/robots/pr2Gripper.h
-    ${GSRC}/include/robots/robotiq.h
-    ${GSRC}/include/robots/mcGrip.h
+    ${GSRC}/include/graspit/body.h
+    ${GSRC}/include/graspit/robot.h
+    ${GSRC}/include/graspit/world.h
+    ${GSRC}/include/graspit/grasp.h
+    ${GSRC}/include/graspit/worldElement.h
+    ${GSRC}/include/graspit/graspitServer.h
+    ${GSRC}/include/graspit/ivmgr.h
+    ${GSRC}/include/graspit/EGPlanner/egPlanner.h
+    ${GSRC}/include/graspit/EGPlanner/simAnn.h
+    ${GSRC}/include/graspit/EGPlanner/loopPlanner.h
+    ${GSRC}/include/graspit/EGPlanner/energy/searchEnergy.h
+    ${GSRC}/include/graspit/EGPlanner/guidedPlanner.h
+    ${GSRC}/include/graspit/Planner/grasp_tester.h
+    ${GSRC}/include/graspit/robots/humanHand.h
+    ${GSRC}/include/graspit/robots/m7tool.h
+    ${GSRC}/include/graspit/robots/m7.h
+    ${GSRC}/include/graspit/robots/barrett.h
+    ${GSRC}/include/graspit/robots/robonaut.h
+    ${GSRC}/include/graspit/robots/pr2Gripper.h
+    ${GSRC}/include/graspit/robots/robotiq.h
+    ${GSRC}/include/graspit/robots/mcGrip.h
     ${CGDB_MOC_HEADERS}
 ) 
 
@@ -388,6 +456,11 @@ set (GRASPIT_CORE_SOURCES
     ${GSRC}/src/contact/virtualContact.cpp 
     ${GSRC}/src/contact/virtualContactOnObject.cpp
     ${GSRC}/src/contactSetting.cpp 
+    ${GSRC}/src/quality/quality.cpp
+    ${GSRC}/src/quality/qualEpsilon.cpp
+    ${GSRC}/src/quality/qualVolume.cpp
+    ${GSRC}/src/quality/qualPCR.cpp
+    ${GSRC}/src/quality/qualPGR.cpp
     ${GSRC}/src/dof.cpp 
     ${GSRC}/src/dynamics/dynamics.cpp 
     ${GSRC}/src/dynamics/dynJoint.cpp 
@@ -412,17 +485,18 @@ set (GRASPIT_CORE_SOURCES
     ${GSRC}/src/mytools.cpp 
     ${GSRC}/src/profiling.cpp 
     ${GSRC}/src/plugin.cpp 
-    ${GSRC}/src/quality.cpp 
     ${GSRC}/src/robot.cpp 
     ${GSRC}/src/scanSimulator.cpp 
     ${GSRC}/src/SoArrow.cpp 
     ${GSRC}/src/SoComplexShape.cpp 
-    ${GSRC}/src/SoTorquePointer.cpp 	
+    ${GSRC}/src/SoTorquePointer.cpp 
     ${GSRC}/src/triangle.cpp 
     ${GSRC}/src/world.cpp 
     ${GSRC}/src/worldElement.cpp 
     ${GSRC}/src/worldElementFactory.cpp 
     ${GSRC}/src/math/matrix.cpp 
+    ${GSRC}/src/transform.cpp
+    ${GSRC}/src/flockTransform.cpp
     ${GSRC}/src/Collision/collisionInterface.cpp 
     ${GSRC}/src/Planner/grasp_visualization.cpp 
     ${GSRC}/src/Planner/grasp_tester.cpp 
@@ -436,7 +510,8 @@ set (GRASPIT_CORE_SOURCES
     ${GSRC}/src/EGPlanner/simAnn.cpp 
     ${GSRC}/src/EGPlanner/searchState.cpp 
     ${GSRC}/src/EGPlanner/searchStateImpl.cpp 
-    ${GSRC}/src/EGPlanner/energy/searchEnergy.cpp 
+    ${GSRC}/src/EGPlanner/energy/searchEnergy.cpp
+    ${GSRC}/src/EGPlanner/energy/searchEnergyFactory.cpp
     ${GSRC}/src/EGPlanner/onLinePlanner.cpp 
     ${GSRC}/src/EGPlanner/egPlanner.cpp 
     ${GSRC}/src/EGPlanner/simAnnPlanner.cpp 
@@ -446,14 +521,15 @@ set (GRASPIT_CORE_SOURCES
     ${GSRC}/src/EGPlanner/graspTesterThread.cpp 
     ${GSRC}/src/EGPlanner/onLineGraspInterface.cpp 
     ${GSRC}/src/EGPlanner/listPlanner.cpp 
-    ${GSRC}/src/EGPlanner/energy/autograspQualityEnergy.cpp 
+    ${GSRC}/src/EGPlanner/energy/autoGraspQualityEnergy.cpp
     ${GSRC}/src/EGPlanner/energy/compliantEnergy.cpp 
     ${GSRC}/src/EGPlanner/energy/contactEnergy.cpp 
-    ${GSRC}/src/EGPlanner/energy/dynamicAutograspEnergy.cpp 
+    ${GSRC}/src/EGPlanner/energy/dynamicAutoGraspEnergy.cpp
     ${GSRC}/src/EGPlanner/energy/guidedAutoGraspEnergy.cpp 
     ${GSRC}/src/EGPlanner/energy/guidedPotentialQualityEnergy.cpp 
     ${GSRC}/src/EGPlanner/energy/potentialQualityEnergy.cpp 
     ${GSRC}/src/EGPlanner/energy/strictAutoGraspEnergy.cpp 
+    ${GSRC}/src/bodySensor.cpp
 )
 
 #--------------------------------------- Collision library ---------------------------------
@@ -465,7 +541,7 @@ if (COLLISION_ENGINE STREQUAL PQP_COLLISION)
          -DPQP_COLLISION)
     set (GRASPIT_INCLUDES
         ${GRASPIT_INCLUDES}
-    	${GSRC}/PQP-VCOLLIDE/include 
+        ${GSRC}/PQP-VCOLLIDE/include 
         ${GSRC}/PQP-VCOLLIDE/PQP_v1.1/src 
         ${GSRC}/PQP-VCOLLIDE/ivcollide)
     set (COLLISION_PQP_HEADERS
@@ -489,12 +565,12 @@ else (COLLISION_ENGINE STREQUAL PQP_COLLISION)
         -DGRASPIT_COLLISION)
     set (GRASPIT_INCLUDES
         ${GRASPIT_INCLUDES}
-        ${GSRC}/include/Collision/Graspit)
+        ${GSRC}/include/graspit/Collision/Graspit)
     set (COLLISION_GRASPIT_HEADERS
-        ${GSRC}/include/Collision/Graspit/collisionModel.h
-        ${GSRC}/include/Collision/Graspit/collisionAlgorithms.h
-        ${GSRC}/include/Collision/Graspit/collisionAlgorithms_inl.h
-        ${GSRC}/include/Collision/Graspit/graspitCollision.h)
+        ${GSRC}/include/graspit/Collision/Graspit/collisionModel.h
+        ${GSRC}/include/graspit/Collision/Graspit/collisionAlgorithms.h
+        ${GSRC}/include/graspit/Collision/Graspit/collisionAlgorithms_inl.h
+        ${GSRC}/include/graspit/Collision/Graspit/graspitCollision.h)
     set (GRASPIT_COLLISION_SOURCES
         ${GSRC}/src/Collision/Graspit/collisionModel.cpp 
         ${GSRC}/src/Collision/Graspit/collisionAlgorithms.cpp 
@@ -505,45 +581,90 @@ endif (COLLISION_ENGINE STREQUAL PQP_COLLISION)
 
 #--------------------------------------- Dynamics Engine ---------------------------------
 if(DYNAMICS_ENGINE STREQUAL GRASPIT_DYNAMICS)
-	set (GRASPIT_DEFINES
+    set (GRASPIT_DEFINES
         ${GRASPIT_DEFINES}
         -DGRASPIT_DYNAMICS)
     set (GRASPIT_DYNAMICS_INCLUDES
-        ${GSRC}/include/dynamics/graspitDynamics.h 
+        ${GSRC}/include/graspit/dynamics/graspitDynamics.h
         )
     set (GRASPIT_DYNAMICS_SOURCES
         ${GSRC}/src/dynamics/graspitDynamics.cpp
         )
 endif(DYNAMICS_ENGINE STREQUAL GRASPIT_DYNAMICS)
 
-if(DYNAMICS_ENGINE STREQUAL BULLET_DYNAMICS)
-	set (GRASPIT_DEFINES
+#------------------------------------ Optimization Solver --------------------------------
+if(OPTIMIZATION_SOLVER STREQUAL MOSEK)
+    set (GRASPIT_DEFINES
         ${GRASPIT_DEFINES}
-        -DBULLET_DYNAMICS)
-    set (GRASPIT_DYNAMICS_INCLUDES
-        ${GSRC}/include/dynamics/bulletDynamics.h  
+        -DMOSEK_QP)
+    set (GRASPIT_INCLUDES
+        ${GRASPIT_INCLUDES}
+        ${MOSEK_ROOT}/tools/platform/linux64x86/h)
+    set (GRASPIT_OPTIMIZATION_HEADERS
+        ${GSRC}/src/math/mosek_qp.h 
         )
-    set (GRASPIT_DYNAMICS_SOURCES
-        ${GSRC}/src/dynamics/bulletDynamics.cpp
+    set (GRASPIT_OPTIMIZATION_SOURCES
+        ${GSRC}/src/math/mosek_qp.cpp
         )
+    find_library(QP_LIBRARIES
+        NAMES moseknoomp64
+        PATHS ${MOSEK_ROOT}/tools/platform/linux64x86/bin/
+    )
+endif(OPTIMIZATION_SOLVER STREQUAL MOSEK)
 
-endif(DYNAMICS_ENGINE STREQUAL BULLET_DYNAMICS)
+if(OPTIMIZATION_SOLVER STREQUAL OASES)
+    set (GRASPIT_DEFINES
+        ${GRASPIT_DEFINES}
+        -DOASES_QP)
+    set (GRASPIT_INCLUDES
+        ${GRASPIT_INCLUDES}
+        ${OASES_ROOT}/INCLUDE)
+    set (GRASPIT_OPTIMIZATION_HEADERS
+        ${GSRC}/src/math/qpoases.h  
+        )
+    set (GRASPIT_OPTIMIZATION_SOURCES
+        ${GSRC}/src/math/qpoases.cpp  
+        )
+    find_library(QP_LIBRARIES
+        NAMES qpOASES
+        PATHS ${OASES_ROOT}/SRC/
+    )
+endif(OPTIMIZATION_SOLVER STREQUAL OASES)
 
+if(OPTIMIZATION_SOLVER STREQUAL GUROBI)
+    set (GRASPIT_DEFINES
+        ${GRASPIT_DEFINES}
+        -DGUROBI_SOLVER)
+    set (GRASPIT_INCLUDES
+        ${GRASPIT_INCLUDES}
+        ${GUROBI_ROOT}/include)
+    set (GRASPIT_OPTIMIZATION_HEADERS
+        ${GSRC}/src/math/gurobi.h 
+        )
+    set (GRASPIT_OPTIMIZATION_SOURCES
+        ${GSRC}/src/math/gurobi.cpp
+        )
+    find_library(GUROBI_CPP_LIBRARIES
+        NAMES gurobi_c++
+        PATHS ${GUROBI_ROOT}/lib/
+    )
+    find_library(GUROBI_LIBRARIES
+        NAMES gurobi65
+        PATHS ${GUROBI_ROOT}/lib/
+    )
+endif(OPTIMIZATION_SOLVER STREQUAL GUROBI)
 
 #--------------------------------------- User interface: main window and dialogs ---------------------------------
 
 set (GRASPIT_UI_INCLUDES
     ${GSRC}/ui 
-    # following needs to be included because basic
-    # files wouldn't compile without main window
-    ${GSRC}/ui/Planner
+    ${GSRC}/ui/Planner 
     ${GSRC}/ui/EGPlanner
-    ${GSRC}/ui/optimizer
-    ${GSRC}/include/optimizer
 )
 
 set (GRASPIT_INCLUDES
     ${GRASPIT_INCLUDES}
+    ${GRASPIT_UI_INCLUDES}
     ${GRASPIT_CGDB_INCLUDES}
     ${GRASPIT_PLY_INCLUDES}
     ${BULLET_INCLUDE_DIR}
@@ -670,42 +791,6 @@ set (GRASPIT_CORE_SOURCES
     ${GSRC}/tinyxml/tinyxmlparser.cpp
 )
 
-
-#-------------------------------------- Optimizer ---------------------
-
-set (GRASPIT_INCLUDES
-    ${GRASPIT_INCLUDES}
-    ${GSRC}/include/optimizer
-)
-set (OPTIMIZER_HEADERS 
-    ${GSRC}/ui/optimizer/optimizerDlg.h
-)
-
-set (GRASPIT_OPTIMIZER_SOURCES
-    ${GSRC}/ui/optimizer/optimizerDlg.cpp
-)
-
-set (OPTIMIZER_FORMS
-    ${GSRC}/ui/optimizer/optimizerDlg.ui)
-
-if (CGDB)  
-    set (GRASPIT_OPTIMIZER_SOURCES
-        ${GRASPIT_OPTIMIZER_SOURCES}
-        ${GSRC}/src/optimizer/eigenTorques.cpp)
-
-    set (OPTIMIZER_HEADERS 
-        ${OPTIMIZER_HEADERS} 
-        ${GSRC}/include/optimizer/eigenTorques.h
-)
-endif (CGDB)    
-
-set (MOC_HEADERS
-    ${MOC_HEADERS}
-    ${GSRC}/ui/optimizer/optimizerDlg.h
-)
-
-
-
 ##########################################
 ## Generate Qt files for the icon sets  ## 
 ##########################################
@@ -732,7 +817,6 @@ SET(GRASPIT_IMAGE_SOURCES
 set (ALL_GRASPIT_FORMS
     ${GRASPIT_FORMS}
     ${CGDB_FORMS}
-    ${OPTIMIZER_FORMS}
 )
 
 set (GRASPIT_UI_INCLUDE_DIRNAME ui)
@@ -756,9 +840,10 @@ set (CMAKE_CURRENT_BINARY_DIR ${OLD_CMAKE_CURRENT_BINARY_DIR}) # restore current
 QT4_WRAP_CPP(MOC_OUTFILES ${MOC_HEADERS})
 
 
-# All include directories which graspit depends on,
-# **excluding** graspit directories itelf.
-set (GRASPIT_SYS_INCLUDES
+# add Qt stuff to the includes
+set (GRASPIT_INCLUDES 
+     ${GRASPIT_INCLUDES}
+     ${GRASPIT_UI_INCLUDE_PATH}
      ${SOQT_INCLUDE_DIRS}
      ${QT_INCLUDES}
      ${QT_INCLUDE_DIR}
@@ -766,27 +851,12 @@ set (GRASPIT_SYS_INCLUDES
      ${QHULL_INCLUDE_DIRS}
 )
 
-# All graspit includes **except** the ones which
-# should never be exported as dependencies,
-# such as UI-related files. This is required
-# for catkin_package() command.
-set (GRASPIT_BASE_INCLUDES 
-    ${GRASPIT_SYS_INCLUDES}
-    ${GRASPIT_INCLUDES}
-) 
-
-# add Qt stuff to the includes
-set (GRASPIT_INCLUDES 
-     ${GRASPIT_INCLUDES}
-     ${GRASPIT_SYS_INCLUDES}
-     ${GRASPIT_UI_INCLUDES}
-     ${GRASPIT_UI_INCLUDE_PATH}
-)
 
 ## Specify additional locations of header files
 include_directories(
     ${GRASPIT_INCLUDES}
     ${TINYXML_INCLUDES}
+    EIGEN3_INCLUDE_DIR
 )
 
 
@@ -794,11 +864,8 @@ include_directories(
 ## Build  ## 
 ############
 
-set(GRASPIT_DEFINES ${GRASPIT_DEFINES} ${SOQT_CXXFLAGS} ${LAPACK_LINKER_FLAGS} -g)
-add_definitions(${GRASPIT_DEFINES})
-
-set(GRASPIT_LINK_DIRS ${SOQT_LINK_DIRS} ${QT_LIBRARY_DIR})  # this is required again in catkin_package()
-link_directories(${GRASPIT_LINK_DIRS})
+add_definitions(${GRASPIT_DEFINES} ${SOQT_CXXFLAGS} ${LAPACK_LINKER_FLAGS} -g)
+link_directories(${SOQT_LINK_DIRS} ${QT_LIBRARY_DIR})
 
 set (GRASPIT_LIBRARY_SOURCES
     ${GRASPIT_CORE_SOURCES}
@@ -806,15 +873,21 @@ set (GRASPIT_LIBRARY_SOURCES
     ${PLY_SOURCES}
     ${GRASPIT_COLLISION_SOURCES}
     ${GRASPIT_DYNAMICS_SOURCES}
-    ${GRASPIT_OPTIMIZER_SOURCES}
+    ${GRASPIT_OPTIMIZATION_SOURCES}
     ${GRASPIT_FORM_SOURCES}
     ${GRASPIT_IMAGE_SOURCES}
     ${UI_OUTFILES}
     ${MOC_OUTFILES}
 )
 
+add_library(graspit SHARED ${GRASPIT_LIBRARY_SOURCES})
+
+## Make simulator executable
+
 # sources for executable graspit_simulator
 set(SIMULATOR_SRC ${GSRC}/src/main.cpp)
+
+add_executable(graspit_simulator ${SIMULATOR_SRC})
 
 ## System libraries which are needed for graspit
 set(GRASPIT_LINK_LIBRARIES
@@ -824,211 +897,144 @@ set(GRASPIT_LINK_LIBRARIES
    ${SOQT_LIBRARY}
    ${LAPACK_LIBRARIES}
    ${BULLET_LIBRARIES}
+   ${QP_LIBRARIES}
+   ${GUROBI_LIBRARIES}
+   ${GUROBI_CPP_LIBRARIES}
 )
 
-## Make and link libraray and simulator executable
-if (BUILD_SHARED_LIBS)
-    add_library(graspit SHARED ${GRASPIT_LIBRARY_SOURCES})
-    add_executable(graspit_simulator ${SIMULATOR_SRC})
-    target_link_libraries(graspit ${GRASPIT_LINK_LIBRARIES})
-    target_link_libraries(graspit_simulator graspit ${GRASPIT_LINK_LIBRARIES})
-else (BUILD_SHARED_LIBS)
-    add_library(graspit STATIC ${GRASPIT_LIBRARY_SOURCES})
-    if (NOT (CMAKE_VERSION VERSION_LESS 2.8.12))
-        target_compile_options(graspit PRIVATE -fPIC)
-    else (NOT (CMAKE_VERSION VERSION_LESS 2.8.12))
-        set_target_properties(graspit PROPERTIES COMPILE_FLAGS -fPIC)
-    endif (NOT (CMAKE_VERSION VERSION_LESS 2.8.12))
-    # The graspit_simulator executable can still not be linked
-    # with a static library, the problem being the QPixmap resources
-    # (see also: https://wiki.qt.io/QtResources)
-    # With a static library they can't be found, and Q_INIT_RESOURCE can only be done
-    # with a .qrt file (which I tried to use but QT4_ADD_RESOURCES doesn't work).
-    # So for now, compile all sources into the graspit_simulator directly.
-    set(SIMULATOR_SRC ${GRASPIT_LIBRARY_SOURCES} ${SIMULATOR_SRC})
-    add_executable(graspit_simulator ${SIMULATOR_SRC})
-    target_link_libraries(graspit ${GRASPIT_LINK_LIBRARIES})
-    target_link_libraries(graspit_simulator ${GRASPIT_LINK_LIBRARIES})
-endif (BUILD_SHARED_LIBS)
-
-
-
-#######################################################
-# Setting graspit variables for parent scope, so that
-# graspit can be used with add_subdirectory() (eg as
-# external project)
-#######################################################
-set(graspit_INCLUDE_DIRS ${GRASPIT_INCLUDES}) 
-# include directories for dependencies (without graspit)
-set(graspit_SYS_INCLUDES ${GRASPIT_SYS_INCLUDES})
-set(graspit_SYS_LIBRARIES ${GRASPIT_LINK_LIBRARIES})
-set(graspit_CXXFLAGS ${GRASPIT_DEFINES})
-set(graspit_LINK_DIRS ${GRASPIT_LINK_DIRS})
-set(graspit_LIBRARIES graspit ${GRASPIT_LINK_LIBRARIES})
-
-############################
-## Catkin specifications  ## 
-############################
-if (COMPILE_WITH_CATKIN)
-    #message("Base includes: ${GRASPIT_BASE_INCLUDES}")
-    ###################################
-    ## catkin specific configuration ##
-    ###################################
-    ## The catkin_package macro generates cmake config files for your package
-    ## Declare things to be passed to dependent projects
-    ## INCLUDE_DIRS: uncomment this if you package contains header files
-    ## LIBRARIES: libraries you create in this project that dependent projects also need
-    ## CATKIN_DEPENDS: catkin_packages dependent projects also need
-    ## DEPENDS: system dependencies of this project that dependent projects also need
-    catkin_package(
-        INCLUDE_DIRS ${GRASPIT_BASE_INCLUDES} 
-        LIBRARIES graspit ${GRASPIT_LINK_LIBRARIES} # need to add GRASPIT_LINK_LIBRARIES for bloom binary builds
-        # CATKIN_DEPENDS roscpp
-        DEPENDS  ${CMAKE_DEPEND_PROJECTS}
-    )
-endif (COMPILE_WITH_CATKIN)
-
-#############
-# Install
-#############
+## Link the shared library and the executable
+target_link_libraries(graspit ${GRASPIT_LINK_LIBRARIES})
+target_link_libraries(graspit_simulator graspit ${GRASPIT_LINK_LIBRARIES})
 
 ## Set install destination paths
-if (COMPILE_WITH_CATKIN) 
-    # all install targets should use catkin DESTINATION variables
-    # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
-    set ( INCLUDE_DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
-    set ( LIB_DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-    set ( BIN_DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-    set ( SHARE_DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-else (COMPILE_WITH_CATKIN) 
-    set ( INCLUDE_DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}/)
-    set ( LIB_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/)
-    set ( BIN_DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/)
-    set ( SHARE_DESTINATION ${CMAKE_INSTALL_PREFIX}/share/)
-endif (COMPILE_WITH_CATKIN) 
+set ( INCLUDE_DESTINATION ${CMAKE_INSTALL_PREFIX}/include/)
+set ( LIB_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/)
+set ( BIN_DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/)
+set ( SHARE_DESTINATION ${CMAKE_INSTALL_PREFIX}/share/)
 
+set(INSTALL_BINS graspit_simulator graspit)
 
-# Install graspit simulator
-install(TARGETS graspit_simulator 
+## Mark executables and/or libraries for installation
+install(TARGETS ${INSTALL_BINS} 
    ARCHIVE DESTINATION ${LIB_DESTINATION}
    LIBRARY DESTINATION ${LIB_DESTINATION}
    RUNTIME DESTINATION ${BIN_DESTINATION}
 )
 
-# Install library (shared or static)
-if (BUILD_SHARED_LIBS)
-    install(TARGETS
-        graspit 
-        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
-        EXPORT graspit-targets
-        DESTINATION ${LIB_DESTINATION})
 
-    install(EXPORT graspit-targets
-        DESTINATION ${LIB_DESTINATION})
-else(BUILD_SHARED_LIBS)
-    install(TARGETS
-        graspit 
-        EXPORT graspit-static-targets
-        DESTINATION ${LIB_DESTINATION})
-    install(EXPORT graspit-static-targets
-        DESTINATION ${LIB_DESTINATION})
-endif (BUILD_SHARED_LIBS)
-
-
-# Install cmake files
-install(FILES
-    cmake/${GRASPIT_CONFIG_CMAKE}
-    CMakeMacros/FindBULLET.cmake
-    CMakeMacros/FindSoQt4.cmake
-    CMakeMacros/FindQhull.cmake
-    DESTINATION ${LIB_DESTINATION}/${PROJECT_NAME}
+install(DIRECTORY
+    ${GRASPIT_INCLUDEDIR}
+    DESTINATION ${INCLUDE_DESTINATION}/${PROJECT_NAME}
 )
 
-
-# Install headers
-
-install(FILES
-    ${GRASPIT_INCLUDEDIR_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}
-)
-
-install(FILES
-    ${GRASPIT_CMDLINE_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/cmdline
-)
-
-install(FILES
-     ${GRASPIT_DYNAMICS_INCLUDES}
-    DESTINATION ${INCLUDE_DESTINATION}/dynamics
-)
-
-install(FILES
-    ${GRASPIT_PLANNER_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/Planner
-)
-
-
-install(FILES
-    ${GRASPIT_CONTACT_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/contact
-)
-
-install(FILES
-    ${GRASPIT_EGPLANNER_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/EGPlanner
-)
-
-install(FILES
-    ${GRASPIT_EGPLANNER_ENERGY_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/EGPlanner/energy
-)
 
 if (PQP_COLLISION)
     install(FILES
         ${GRASPIT_INCLUDEDIR_HEADERS}
         ${COLLISION_PQP_HEADERS}
-        DESTINATION ${INCLUDE_DESTINATION}/Collision/PQP
+        DESTINATION ${INCLUDE_DESTINATION}/${PROJECT_NAME}/Collision/PQP
     )
 endif (PQP_COLLISION)
 
 
-install(FILES
-    ${GRASPIT_SRC_COLLISION_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/Collision
-)
-
-install(FILES
-    ${GRASPIT_INCLUDE_MATH_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/math
-)
-
-install(FILES
-    ${OPTIMIZER_HEADERS}
-    DESTINATION ${INCLUDE_DESTINATION}/optimizer
-)
+if (NOT OPTIMIZATION_SOLVER STREQUAL NONE)
+    install(FILES
+        ${GRASPIT_OPTIMIZATION_HEADERS}
+        DESTINATION ${INCLUDE_DESTINATION}/${PROJECT_NAME}/math
+    )
+endif (NOT OPTIMIZATION_SOLVER STREQUAL NONE)
 
 install(FILES
     ${UI_OUTFILES}
-    DESTINATION ${INCLUDE_DESTINATION}/${GRASPIT_UI_INCLUDE_DIRNAME}
+    DESTINATION ${INCLUDE_DESTINATION}/${PROJECT_NAME}/${GRASPIT_UI_INCLUDE_DIRNAME}
 )
 
-if (CGDB)
-    install(FILES
-        ${CGDB_HEADERS}
-        DESTINATION ${INCLUDE_DESTINATION}/DBase/
-    )
-    install(FILES
-        ${CGDB_PLANNER_HEADERS}
-        DESTINATION ${INCLUDE_DESTINATION}/DBase/DBPlanner/
-    )
-endif (CGDB)
+############################
+## Catkin specifications  ## 
+############################
+if (COMPILE_WITH_CATKIN)
 
-if (PLY)
-    install(FILES
-        ${PLY_HEADERS}
-        DESTINATION ${INCLUDE_DESTINATION}/ply/
-    )
-endif (PLY)
+  ## System libraries which are needed for graspit
+  set(GRASPIT_LINK_LIBRARIES
+    ${QT_LIBRARIES}
+    ${QT_QT3SUPPORT_LIBRARY}
+    ${QHULL_LIBRARIES}
+    ${SOQT_LIBRARY}
+    ${LAPACK_LIBRARIES}
+    ${BULLET_LIBRARIES}
+  )
+
+  ###################################
+  ## catkin specific configuration ##
+  ###################################
+  ## The catkin_package macro generates cmake config files for your package
+  ## Declare things to be passed to dependent projects
+  ## INCLUDE_DIRS: uncomment this if you package contains header files
+  ## LIBRARIES: libraries you create in this project that dependent projects also need
+  ## CATKIN_DEPENDS: catkin_packages dependent projects also need
+  ## DEPENDS: system dependencies of this project that dependent projects also need
+  catkin_package(
+    INCLUDE_DIRS ${GRASPIT_INCLUDES} 
+    LIBRARIES graspit ${GRASPIT_LINK_LIBRARIES} # need to add GRASPIT_LINK_LIBRARIES for bloom binary builds
+    # CATKIN_DEPENDS roscpp
+    DEPENDS  ${CMAKE_DEPEND_PROJECTS}
+  )
+
+endif (COMPILE_WITH_CATKIN)
+
+#############
+## Install ##
+#############
+
+install(TARGETS
+    graspit 
+    PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
+    EXPORT graspitTargets
+    DESTINATION ${LIB_DESTINATION})
+
+install(EXPORT graspitTargets
+   DESTINATION ${INSTALL_CMAKE_DIR})
+
+# Install the graspitConfig.cmake and graspitConfigVersion.cmake
+install(FILES
+  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/graspitConfig.cmake"
+  "${PROJECT_BINARY_DIR}/graspitConfigVersion.cmake"
+    CMakeMacros/FindBULLET.cmake
+    CMakeMacros/FindSoQt4.cmake
+    CMakeMacros/FindQhull.cmake
+  DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
+
+install(DIRECTORY
+    worlds
+    models
+    images
+    DESTINATION ${GRASPIT_DATA_DIR}
+)
+
+# # Add all targets to the build-tree export set
+# export(TARGETS graspit_simulator graspit
+#   FILE "${PROJECT_BINARY_DIR}/graspitTargets.cmake")
+
+# Export the package for use from the build-tree
+# (this registers the build-tree with a global CMake-registry)
+export(PACKAGE GRASPIT)
+
+# Create the graspitConfig.cmake and GraspitConfigVersion files
+file(RELATIVE_PATH REL_INCLUDE_DIR "${INSTALL_CMAKE_DIR}"
+   "${INCLUDE_DESTINATION}")
+# ... for the build tree
+set(CONF_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}")
+configure_file(graspitConfig.cmake.in
+  "${PROJECT_BINARY_DIR}/graspitConfig.cmake" @ONLY)
+# ... for the install tree
+set(CONF_INCLUDE_DIRS "\${GRASPIT_CMAKE_DIR}/${REL_INCLUDE_DIR}")
+configure_file(graspitConfig.cmake.in
+  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/graspitConfig.cmake" @ONLY)
+# ... for both
+configure_file(graspitConfigVersion.cmake.in
+  "${PROJECT_BINARY_DIR}/graspitConfigVersion.cmake" @ONLY)
+
+
 
 
 #############
@@ -1040,18 +1046,59 @@ if(BUILD_TESTS)
 enable_testing()
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
-set(CMAKE_DEPEND_PROJECTS ${CMAKE_DEPEND_PROJECTS} GTest)
 
-# Make test executable
-add_executable(graspit_simple_test
-    ${GSRC}/test/simple_test.cpp
+# Make test executables
+add_executable(primative_planner_tests
+    ${GSRC}/test/primative_planner_tests.cpp
 )
 
-add_dependencies(graspit_simple_test googletest)
+add_executable(eigen_tests
+    ${GSRC}/test/eigen_tests.cpp
+)
 
-target_link_libraries(graspit_simple_test
+add_executable(transform_tests
+    ${GSRC}/test/transform_tests.cpp
+)
+
+add_executable(graspit_collision_tests
+    ${GSRC}/test/graspit_collision_tests.cpp
+)
+
+set_target_properties( primative_planner_tests eigen_tests transform_tests graspit_collision_tests
+    PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
+)
+
+add_dependencies(primative_planner_tests googletest)
+add_dependencies(eigen_tests googletest)
+add_dependencies(transform_tests googletest)
+add_dependencies(graspit_collision_tests googletest)
+
+target_link_libraries(primative_planner_tests
    graspit
    ${GTEST_BOTH_LIBRARIES}
 )
+
+target_link_libraries(eigen_tests
+   graspit
+   ${GTEST_BOTH_LIBRARIES}
+)
+
+target_link_libraries(transform_tests
+   graspit
+   ${GTEST_BOTH_LIBRARIES}
+)
+
+target_link_libraries(graspit_collision_tests
+   graspit
+   ${GTEST_BOTH_LIBRARIES}
+)
+
+
+
+
+
 
 endif(BUILD_TESTS)
