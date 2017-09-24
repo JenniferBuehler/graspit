@@ -467,12 +467,12 @@ World::destroyElement(WorldElement *e, bool deleteElement)
     // part of World (and also are QObject children of World),
     // I assume now that the following change is safe.
     // mCollisionInterface->removeBody( (Body*) e);
-    for (bp=bodyVec.begin();bp!=bodyVec.end();bp++) {
+    for (bp = bodyVec.begin(); bp != bodyVec.end(); bp++) {
       if (*bp == e) {
         // Change by Jennfier: put removeBody() here instead
         mCollisionInterface->removeBody( (Body*) e);
         bodyVec.erase(bp); numBodies--;
-        DBGP("removed body "<<((Body *)e)->getName().toStdString().c_str() <<" from world");
+        DBGP("removed body " << ((Body *)e)->getName().toStdString().c_str() <<" from world");
         break;
       }
     }
