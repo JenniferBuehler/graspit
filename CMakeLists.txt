@@ -988,11 +988,19 @@ endif (COMPILE_WITH_CATKIN)
 #######################################################
 # Setting graspit variables for parent scope, so that
 # graspit can be used with add_subdirectory() (eg as
-# external project).
+# external project)
 #######################################################
 set(graspit_INCLUDE_DIRS ${GRASPIT_INCLUDES}) 
 # include directories for dependencies (without graspit)
+set(graspit_SYS_INCLUDES
+   ${SOQT_INCLUDE_DIRS}
+   ${QT_INCLUDES}
+   ${QT_INCLUDE_DIR}
+   ${QT_QT3SUPPORT_INCLUDE_DIR}
+   ${QHULL_INCLUDE_DIRS})
+set(graspit_SYS_LIBRARIES ${GRASPIT_LINK_LIBRARIES})
 set(graspit_CXXFLAGS ${GRASPIT_DEFINES})
+# set(graspit_LINK_DIRS ${GRASPIT_LINK_DIRS})
 set(graspit_LIBRARIES graspit ${GRASPIT_LINK_LIBRARIES})
 
 
