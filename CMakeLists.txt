@@ -952,21 +952,24 @@ install(FILES
 ############################
 ## Catkin specifications  ## 
 ############################
+
+## System libraries which are needed for graspit
+set(GRASPIT_LINK_LIBRARIES
+  ${QT_LIBRARIES}
+  ${QT_QT3SUPPORT_LIBRARY}
+  ${QHULL_LIBRARIES}
+  ${SOQT_LIBRARY}
+  ${LAPACK_LIBRARIES}
+  ${BULLET_LIBRARIES}
+)
+
 if (COMPILE_WITH_CATKIN)
 
-  ## System libraries which are needed for graspit
-  set(GRASPIT_LINK_LIBRARIES
-    ${QT_LIBRARIES}
-    ${QT_QT3SUPPORT_LIBRARY}
-    ${QHULL_LIBRARIES}
-    ${SOQT_LIBRARY}
-    ${LAPACK_LIBRARIES}
-    ${BULLET_LIBRARIES}
+  set(GRASPIT_CATKIN_INCLUDES
+    ${GSRC}/include/
+    ${GSRC}/include/graspit/
   )
 
-  ###################################
-  ## catkin specific configuration ##
-  ###################################
   ## The catkin_package macro generates cmake config files for your package
   ## Declare things to be passed to dependent projects
   ## INCLUDE_DIRS: uncomment this if you package contains header files
@@ -974,13 +977,24 @@ if (COMPILE_WITH_CATKIN)
   ## CATKIN_DEPENDS: catkin_packages dependent projects also need
   ## DEPENDS: system dependencies of this project that dependent projects also need
   catkin_package(
-    INCLUDE_DIRS ${GRASPIT_INCLUDES} 
+    INCLUDE_DIRS ${GRASPIT_CATKIN_INCLUDES} 
     LIBRARIES graspit ${GRASPIT_LINK_LIBRARIES} # need to add GRASPIT_LINK_LIBRARIES for bloom binary builds
     # CATKIN_DEPENDS roscpp
     DEPENDS  ${CMAKE_DEPEND_PROJECTS}
   )
 
 endif (COMPILE_WITH_CATKIN)
+
+#######################################################
+# Setting graspit variables for parent scope, so that
+# graspit can be used with add_subdirectory() (eg as
+# external project).
+#######################################################
+set(graspit_INCLUDE_DIRS ${GRASPIT_INCLUDES}) 
+# include directories for dependencies (without graspit)
+set(graspit_CXXFLAGS ${GRASPIT_DEFINES})
+set(graspit_LIBRARIES graspit ${GRASPIT_LINK_LIBRARIES})
+
 
 #############
 ## Install ##
