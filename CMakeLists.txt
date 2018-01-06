@@ -880,7 +880,11 @@ set (GRASPIT_LIBRARY_SOURCES
     ${MOC_OUTFILES}
 )
 
-add_library(graspit SHARED ${GRASPIT_LIBRARY_SOURCES})
+if (BUILD_SHARED_LIBS)
+  add_library(graspit SHARED ${GRASPIT_LIBRARY_SOURCES})
+else (BUILD_SHARED_LIBS)
+  add_library(graspit ${GRASPIT_LIBRARY_SOURCES})
+endif (BUILD_SHARED_LIBS)
 
 ## Make simulator executable
 
