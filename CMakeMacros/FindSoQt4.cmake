@@ -18,6 +18,8 @@ macro(msys_to_cmake_path MsysPath ResultingPath)
   #message("REPL PATH: '${${ResultingPath}}'")
 endmacro()
 
+
+
 # --- First, try to find relevant headers with find_path and find_library,
 # in order to cause a cmake failure if libraries are not there. 
 
@@ -90,6 +92,9 @@ else (SOQT_LIBRARY_DEBUG)
 endif (SOQT_LIBRARY_DEBUG)
 
 
+
+
+
 #--- now, use soqt-config in order to get all settings right:
 
 
@@ -123,7 +128,7 @@ if(SOQT_CONFIG_EXECUTABLE AND BASH_EXECUTABLE)
     RESULT_VARIABLE _soqtconfig_failed)
 
   message(STATUS "Result of soqt_config: ${_soqtconfig_libs}")
-  # message(STATUS "soqt_config failed? ${_soqtconfig_failed}")
+  message(STATUS "soqt_config failed? ${_soqtconfig_failed}")
 
   string(REGEX MATCHALL "(^| )-L([./+-_\\a-zA-Z]*)" _soqtconfig_ldirs "${_soqtconfig_ldflags}")
   string(REGEX REPLACE "(^| )-L" "" _soqtconfig_ldirs "${_soqtconfig_ldirs}")
